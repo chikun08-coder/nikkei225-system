@@ -24,21 +24,29 @@ export default async function handler(req, res) {
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         messages: [{
           role: 'user',
-          content: `nikkeiyosoku.com や kabutan.jp で「日経225先物 外資系 手口」を検索して、ゴールドマン、JPモルガン、野村、バークレイズ、ソシエテ、ABNアムロの建玉データを取得してください。
+          content: `以下のURLにアクセスして、外資系証券の手口データを取得してください：
 
-検索後、以下のJSON形式のみで返してください：
+1. https://nikkeiyosoku.com/teguchi/ （先物手口）
+2. https://nikkeiyosoku.com/op_teguchi/ （オプション手口）
 
-{"foreignDaily":{"goldman":{"weeklyOI":-8000,"callSell":-600,"putSell":0,"comment":"売り継続"},"jpmorgan":{"weeklyOI":9000,"callSell":-10,"putSell":-100,"comment":"買い維持"},"nomura":{"weeklyOI":14000,"callSell":-80,"putSell":0,"comment":"強気継続"},"barclays":{"weeklyOI":8000,"callSell":-300,"putSell":-180,"comment":"買い"},"societe":{"weeklyOI":3000,"callSell":-90,"putSell":-50,"comment":"やや買い"},"abn":{"weeklyOI":900,"callSell":-800,"putSell":-110,"comment":"中立"}}}
+これらのページから、ゴールドマン・サックス、JPモルガン、野村證券、バークレイズ、ソシエテ・ジェネラル、ABNアムロの建玉データを読み取ってください。
 
-weeklyOI=週次建玉（買い越しは+、売り越しは-）
-上記形式のJSONのみを返してください。説明文は不要です。`
+読み取った実際の数値を使って、以下のJSON形式で返してください：
+
+{"foreignDaily":{"goldman":{"weeklyOI":数値,"callSell":数値,"putSell":数値,"comment":"コメント"},"jpmorgan":{"weeklyOI":数値,"callSell":数値,"putSell":数値,"comment":"コメント"},"nomura":{"weeklyOI":数値,"callSell":数値,"putSell":数値,"comment":"コメント"},"barclays":{"weeklyOI":数値,"callSell":数値,"putSell":数値,"comment":"コメント"},"societe":{"weeklyOI":数値,"callSell":数値,"putSell":数値,"comment":"コメント"},"abn":{"weeklyOI":数値,"callSell":数値,"putSell":数値,"comment":"コメント"}}}
+
+weeklyOI = 建玉の増減（買い越しならプラス、売り越しならマイナス）
+callSell = コール売り枚数（売りならマイナス）
+putSell = プット売り枚数（売りならマイナス）
+comment = その会社の動向を短くコメント
+
+必ず実際のデータを読み取って、JSONのみを返してください。`
         }]
       })
     });
 
     const result = await response.json();
     
-    // レスポンスからテキストを抽出
     let textContent = '';
     if (result.content && Array.isArray(result.content)) {
       textContent = result.content
@@ -47,7 +55,6 @@ weeklyOI=週次建玉（買い越しは+、売り越しは-）
         .join('');
     }
     
-    // JSONを抽出
     let parsed = null;
     
     try {
@@ -77,7 +84,7 @@ weeklyOI=週次建玉（買い越しは+、売り越しは-）
     return res.status(200).json({ 
       success: false, 
       error: 'Could not parse response',
-      raw: textContent.substring(0, 500)
+      raw: textContent.substring(0, 1000)
     });
     
   } catch (error) {
