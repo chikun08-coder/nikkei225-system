@@ -20,16 +20,18 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 2000,
+        max_tokens: 4000,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         messages: [{
           role: 'user',
-          content: `日経225先物の外資系証券の手口データを教えてください。
+          content: `nikkeiyosoku.com や kabutan.jp で「日経225先物 外資系 手口」を検索して、ゴールドマン、JPモルガン、野村、バークレイズ、ソシエテ、ABNアムロの建玉データを取得してください。
 
-以下のJSON形式のみで返してください。マークダウンや説明は不要です。
+検索後、以下のJSON形式のみで返してください：
 
 {"foreignDaily":{"goldman":{"weeklyOI":-8000,"callSell":-600,"putSell":0,"comment":"売り継続"},"jpmorgan":{"weeklyOI":9000,"callSell":-10,"putSell":-100,"comment":"買い維持"},"nomura":{"weeklyOI":14000,"callSell":-80,"putSell":0,"comment":"強気継続"},"barclays":{"weeklyOI":8000,"callSell":-300,"putSell":-180,"comment":"買い"},"societe":{"weeklyOI":3000,"callSell":-90,"putSell":-50,"comment":"やや買い"},"abn":{"weeklyOI":900,"callSell":-800,"putSell":-110,"comment":"中立"}}}
 
-上記のような形式で、最新のデータに更新して返してください。JSONのみ、他の文字は不要です。`
+weeklyOI=週次建玉（買い越しは+、売り越しは-）
+上記形式のJSONのみを返してください。説明文は不要です。`
         }]
       })
     });
@@ -45,14 +47,12 @@ export default async function handler(req, res) {
         .join('');
     }
     
-    // JSONを抽出（複数のパターンに対応）
+    // JSONを抽出
     let parsed = null;
     
-    // パターン1: そのままパース
     try {
       parsed = JSON.parse(textContent.trim());
     } catch (e) {
-      // パターン2: ```json ... ``` から抽出
       const jsonBlockMatch = textContent.match(/```(?:json)?\s*([\s\S]*?)```/);
       if (jsonBlockMatch) {
         try {
@@ -60,7 +60,6 @@ export default async function handler(req, res) {
         } catch (e2) {}
       }
       
-      // パターン3: { ... } を抽出
       if (!parsed) {
         const jsonMatch = textContent.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
@@ -75,7 +74,6 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, data: parsed });
     }
     
-    // デバッグ用：生のレスポンスを返す
     return res.status(200).json({ 
       success: false, 
       error: 'Could not parse response',
