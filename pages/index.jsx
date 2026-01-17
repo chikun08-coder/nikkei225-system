@@ -1,4 +1,4 @@
-"use client";
+import dynamic from 'next/dynamic';
 import React, { useState, useCallback, useEffect } from 'react';
 import { RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ComposedChart, Area, Line, Cell, LineChart, PieChart, Pie } from 'recharts';
 import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Target, Shield, Zap, Activity, BarChart3, Building2, Flame, Eye, Layers, Wind, ChevronDown, ChevronUp, Clock, Play, Calendar, Sun, Moon, Sunrise, Sunset, Award, Database, Plus, Trash2, Save, Square } from 'lucide-react';
@@ -588,7 +588,7 @@ const calculateSlotAnalysis = (data, slotType) => {
 };
 
 // メインコンポーネント
-export default function Nikkei225SystemTrading() {
+function Nikkei225SystemTrading() {
   const [activeTab, setActiveTab] = useState('slots');
   const [data, setData] = useState(realMarketData);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -2101,3 +2101,7 @@ export default function Nikkei225SystemTrading() {
     </div>
   );
 }
+// SSRを無効化
+export default dynamic(() => Promise.resolve(Nikkei225SystemTrading), {
+  ssr: false,
+});
