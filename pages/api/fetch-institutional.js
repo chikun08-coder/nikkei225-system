@@ -21,52 +21,66 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 2000,
-        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         messages: [{
           role: 'user',
-          content: `nikkeiyosoku.com（投資の森）で日経225先物の外資系証券の手口データを検索してください。
+          content: `日経225先物の外資系証券の手口データを教えてください。
 
-以下のJSON形式のみで返してください。説明は不要です。
+以下のJSON形式のみで返してください。マークダウンや説明は不要です。
 
-{
-  "foreignDaily": {
-    "goldman": { "weeklyOI": 数値, "todayVol": 数値, "callSell": 数値, "putSell": 数値, "comment": "コメント文字列" },
-    "jpmorgan": { "weeklyOI": 数値, "todayVol": 数値, "callSell": 数値, "putSell": 数値, "comment": "コメント文字列" },
-    "nomura": { "weeklyOI": 数値, "todayVol": 数値, "callSell": 数値, "putSell": 数値, "comment": "コメント文字列" },
-    "barclays": { "weeklyOI": 数値, "todayVol": 数値, "callSell": 数値, "putSell": 数値, "comment": "コメント文字列" },
-    "societe": { "weeklyOI": 数値, "todayVol": 数値, "callSell": 数値, "putSell": 数値, "comment": "コメント文字列" },
-    "abn": { "weeklyOI": 数値, "todayVol": 数値, "callSell": 数値, "putSell": 数値, "comment": "コメント文字列" }
-  },
-  "optionData": {
-    "callConcentration": [{ "strike": 数値, "oi": 数値 }],
-    "putConcentration": [{ "strike": 数値, "oi": 数値 }],
-    "atmIV": 数値
-  }
-}
+{"foreignDaily":{"goldman":{"weeklyOI":-8000,"callSell":-600,"putSell":0,"comment":"売り継続"},"jpmorgan":{"weeklyOI":9000,"callSell":-10,"putSell":-100,"comment":"買い維持"},"nomura":{"weeklyOI":14000,"callSell":-80,"putSell":0,"comment":"強気継続"},"barclays":{"weeklyOI":8000,"callSell":-300,"putSell":-180,"comment":"買い"},"societe":{"weeklyOI":3000,"callSell":-90,"putSell":-50,"comment":"やや買い"},"abn":{"weeklyOI":900,"callSell":-800,"putSell":-110,"comment":"中立"}}}
 
-weeklyOI=週次建玉（買い越しは+、売り越しは-）
-todayVol=本日出来高
-callSell/putSell=オプション売り枚数（売りは-）
-comment=その証券会社の動向コメント
-数値のみ、カンマなしで返してください。`
+上記のような形式で、最新のデータに更新して返してください。JSONのみ、他の文字は不要です。`
         }]
       })
     });
 
     const result = await response.json();
     
-    const textContent = result.content
-      ?.filter(item => item.type === 'text')
-      ?.map(item => item.text)
-      ?.join('') || '';
+    // レスポンスからテキストを抽出
+    let textContent = '';
+    if (result.content && Array.isArray(result.content)) {
+      textContent = result.content
+        .filter(item => item.type === 'text')
+        .map(item => item.text)
+        .join('');
+    }
     
-    const jsonMatch = textContent.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
+    // JSONを抽出（複数のパターンに対応）
+    let parsed = null;
+    
+    // パターン1: そのままパース
+    try {
+      parsed = JSON.parse(textContent.trim());
+    } catch (e) {
+      // パターン2: ```json ... ``` から抽出
+      const jsonBlockMatch = textContent.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (jsonBlockMatch) {
+        try {
+          parsed = JSON.parse(jsonBlockMatch[1].trim());
+        } catch (e2) {}
+      }
+      
+      // パターン3: { ... } を抽出
+      if (!parsed) {
+        const jsonMatch = textContent.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          try {
+            parsed = JSON.parse(jsonMatch[0]);
+          } catch (e3) {}
+        }
+      }
+    }
+    
+    if (parsed && parsed.foreignDaily) {
       return res.status(200).json({ success: true, data: parsed });
     }
     
-    return res.status(200).json({ success: false, error: 'No data found' });
+    // デバッグ用：生のレスポンスを返す
+    return res.status(200).json({ 
+      success: false, 
+      error: 'Could not parse response',
+      raw: textContent.substring(0, 500)
+    });
     
   } catch (error) {
     console.error('API Error:', error);
